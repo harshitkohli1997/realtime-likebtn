@@ -1,0 +1,84 @@
+<h1>hey</h1>
+
+<div class="container-fluid text-center">
+
+    {{#each posts }}
+        <div class="jumbotron">
+            <div>by
+                <b>{{ this.author  }}</b>
+                on
+                <small>{{ this.posted_at }}</small>
+            </div>
+
+            <div>
+                <p>{{ this.text }}</p>
+            </div>
+
+            <div class="row">
+                <button onclick="actOnPost(event);"
+                        data-post-id="{{ this.id }}">Like
+                </button>
+                <span id="likes-count-{{ this.id }}">{{ this.likes_count }}</span>
+            </div>
+        </div>
+    {{/each}}
+
+</div>
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+    var updatePostStats = {
+        Like: function (postId) {
+            document.querySelector('#likes-count-' + postId).textContent++;
+        },
+
+        Unlike: function(postId) {
+            document.querySelector('#likes-count-' + postId).textContent--;
+        }
+    };
+
+
+    var toggleButtonText = {
+        Like: function(button) {
+            button.textContent = "Unlike";
+        },
+
+        Unlike: function(button) {
+            button.textContent = "Like";
+        }
+    };
+
+    var actOnPost = function (event) {
+        var postId = event.target.dataset.postId;
+        var action = event.target.textContent.trim();
+        toggleButtonText[action](event.target);
+        updatePostStats[action](postId);
+        axios.post('/posts/' + postId + '/act',
+                { action: action, socketId: socketId });
+    };
+</script>
+
+
+
+<script src="https://js.pusher.com/4.1/pusher.min.js"></script>
+
+<script>
+    var pusher = new Pusher('47db0ec187024982d1fa', {
+        cluster: 'eu'
+    });
+    var socketId;
+
+    // retrieve the socket ID on successful connection
+    pusher.connection.bind('connected', function() {
+        socketId = pusher.connection.socket_id;
+    });
+
+    var channel = pusher.subscribe('post-events');
+    channel.bind('postAction', function(data) {
+        // log message data to console - for debugging purposes
+        console.log(data);
+        var action = data.action;
+        updatePostStats[action](data.postId);
+    });
+</script>
+
